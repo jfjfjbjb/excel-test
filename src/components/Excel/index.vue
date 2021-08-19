@@ -12,21 +12,21 @@
     <a-divider>内容显示</a-divider>
     <div class="content-box">
       <a-tabs
-        default-active-key="0"
+        :active-key="activeKey"
         v-if="sheets.length > 0"
         @change="onChange"
       >
-        <a-tab-pane
-          v-for="(sheet, index) in sheets"
-          :key="index + ''"
-          :tab="sheet.name"
-        >
+        <a-tab-pane v-for="sheet in sheets" :key="sheet.name" :tab="sheet.name">
           <!-- <a-table v-bind="sheet.tableParams" :pagination="false"></a-table> -->
           <vue-virtual-table v-bind="sheet.tableParams"> </vue-virtual-table>
         </a-tab-pane>
       </a-tabs>
       <a-empty v-else />
     </div>
+    <a-button class="btn-filter-compare" @click="onFilterCompare"
+      >过滤比较</a-button
+    >
+    <Modal ref="Modal"></Modal>
   </div>
 </template>
 
@@ -34,23 +34,30 @@
 import XLSX from "xlsx";
 import NProgress from "nprogress";
 import VueVirtualTable from "vue-virtual-table";
+import Modal from "./modal.vue";
 
 export default {
-  components: { VueVirtualTable },
+  components: { VueVirtualTable, Modal },
   data() {
     console.log(this);
     this.wb = null;
+    this.count = 0;
     return {
       fileList: [],
       sheets: [],
+      activeKey: "",
     };
   },
   methods: {
     handleRemove(file) {
       this.fileList = [];
+      this.sheets = [];
+      this.activeKey = "";
     },
     beforeUpload(file) {
       this.fileList = [file];
+      this.sheets = [];
+      this.activeKey = "";
       this.showExcel(file);
       return false;
     },
@@ -69,12 +76,14 @@ export default {
           type: "binary",
         });
         this.wb = wb;
+        this.count = this.count + 1;
         this.sheets = wb.SheetNames.map((item, index) => {
           return {
             name: item,
             tableParams: index == 0 ? this.getTableParams(wb, item) : {},
           };
         });
+        this.activeKey = _.get(this.sheets, "0.name");
       };
       setTimeout(() => {
         NProgress.set(0.4);
@@ -147,17 +156,25 @@ export default {
     },
     onChange(key) {
       const { sheets } = this;
-      if (_.isEmpty(_.get(sheets, `${key}.tableParams`))) {
+      const index = sheets.findIndex((item) => item.name === key);
+      if (_.isEmpty(_.get(sheets, `${index}.tableParams`))) {
         NProgress.set(0.4);
         setTimeout(() => {
           this.$set(
-            this.sheets[key],
+            this.sheets[index],
             `tableParams`,
-            this.getTableParams(this.wb, this.sheets[key].name)
+            this.getTableParams(this.wb, key)
           );
           NProgress.done();
         }, 500);
       }
+      this.activeKey = key + "";
+    },
+    onFilterCompare() {
+      this.$refs.Modal.show({
+        sheets: this.sheets,
+        count: this.count,
+      });
     },
   },
 };
@@ -167,6 +184,7 @@ export default {
 <style lang="less" scoped>
 .test-excel {
   padding: 24px;
+  position: relative;
 
   .upload-wrapper {
   }
@@ -179,6 +197,12 @@ export default {
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
+  }
+
+  .btn-filter-compare {
+    position: absolute;
+    right: 24px;
+    top: 24px;
   }
 }
 </style>

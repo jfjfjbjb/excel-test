@@ -14,7 +14,7 @@ export default new Router({
     {
       path: '/excel',
       name: 'excel',
-      component: () => import('@/components/Excel')
+      component: () => import('@/components/Excel/index.vue')
     }
   ]
 })
