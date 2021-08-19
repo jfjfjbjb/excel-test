@@ -26,7 +26,7 @@
     <a-button class="btn-filter-compare" @click="onFilterCompare"
       >过滤比较</a-button
     >
-    <Modal ref="Modal"></Modal>
+    <Modal ref="Modal" @save="onSave"></Modal>
   </div>
 </template>
 
@@ -149,6 +149,7 @@ export default {
       return {
         config: columns,
         data,
+        sourceData: data,
         height: document.body.clientHeight - 260,
         itemHeight: 55,
         minWidth: (columns.length - 1) * 200 + 80,
@@ -175,6 +176,60 @@ export default {
         sheets: this.sheets,
         count: this.count,
       });
+    },
+    onSave(data = {}) {
+      if (data.flag) {
+        // 过滤
+        const {
+          baseSheet,
+          baseCol,
+          baseVal,
+          compareSheets,
+          compareCol,
+          compareVal,
+        } = data;
+        let sheets = [baseSheet, ...compareSheets];
+
+        NProgress.set(0.4);
+        setTimeout(() => {
+          this.sheets = this.sheets.filter((item) =>
+            sheets.includes(item.name)
+          );
+          let arr = [...this.sheets];
+          arr.forEach((item, index) => {
+            if (_.isPlainObject(_.get(item, "tableParams"))) {
+              arr[index].tableParams = this.getTableParams(this.wb, item.name);
+            }
+          });
+          this.sheets = arr;
+          this.activeKey = arr[0].name;
+          setTimeout(() => {
+            this.sheets.forEach((item, index) => {
+              if (compareSheets.includes(item.name)) {
+                let { sourceData = [] } = item.tableParams;
+                let matchItems = sourceData.filter((itm) => {
+                  return itm[baseCol] == baseVal;
+                });
+                this.$set(this.sheets[index].tableParams, "data", matchItems);
+              }
+            });
+            NProgress.done();
+          }, 300);
+        }, 300);
+      } else {
+        // 还原
+        NProgress.set(0.4);
+        setTimeout(() => {
+          this.sheets = this.wb.SheetNames.map((item, index) => {
+            return {
+              name: item,
+              tableParams: index == 0 ? this.getTableParams(this.wb, item) : {},
+            };
+          });
+          this.activeKey = _.get(this.sheets, "0.name");
+          NProgress.done();
+        }, 300);
+      }
     },
   },
 };

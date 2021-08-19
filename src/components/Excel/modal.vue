@@ -28,21 +28,34 @@
           @change="chooseBaseSheet"
         ></a-select>
       </a-form-model-item>
-      <a-form-model-item label="基准列" prop="baseCol">
+      <a-form-model-item
+        label="基准列"
+        prop="baseCol"
+        :rules="[{ required: true }]"
+      >
+        <a-input
+          v-model="data.baseCol"
+          placeholder="请输入"
+          :disabled="!data.flag"
+        />
+      </a-form-model-item>
+      <a-form-model-item
+        label="基准值"
+        prop="baseVal"
+        :rules="[{ required: true }]"
+      >
         <a-input
           v-model="data.baseVal"
           placeholder="请输入"
           :disabled="!data.flag"
         />
       </a-form-model-item>
-      <a-form-model-item label="基准值" prop="baseVal">
-        <a-input
-          v-model="data.baseVal"
-          placeholder="请输入"
-          :disabled="!data.flag"
-        />
-      </a-form-model-item>
-      <a-form-model-item label="比较sheets" prop="compareSheets">
+      <a-divider />
+      <a-form-model-item
+        label="比较sheets"
+        prop="compareSheets"
+        :rules="[{ required: true }]"
+      >
         <a-select
           v-model="data.compareSheets"
           :options="compareSheetsOptions"
@@ -50,6 +63,28 @@
           :disabled="!data.flag"
           mode="multiple"
         ></a-select>
+      </a-form-model-item>
+      <a-form-model-item
+        label="比较列"
+        prop="compareCol"
+        :rules="[{ required: true }]"
+      >
+        <a-input
+          v-model="data.compareCol"
+          placeholder="请输入"
+          :disabled="!data.flag"
+        />
+      </a-form-model-item>
+      <a-form-model-item
+        label="比较值"
+        prop="compareVal"
+        :rules="[{ required: true }]"
+      >
+        <a-input
+          v-model="data.compareVal"
+          placeholder="请输入"
+          :disabled="!data.flag"
+        />
       </a-form-model-item>
     </a-form-model>
     <div
@@ -100,7 +135,7 @@ export default {
         };
       });
       if (this.count != count) {
-          this.data = { flag : true };
+        this.data = { flag: true };
       }
       this.count = count;
       this.setInfo();
@@ -126,8 +161,8 @@ export default {
     },
     chooseBaseSheet(e) {
       this.data = Object.assign({}, this.data, {
-        baseCol: undefined,
-        baseVal: undefined,
+        // baseCol: undefined,
+        // baseVal: undefined,
         compareSheets: undefined,
       });
       this.setInfo();
@@ -136,6 +171,10 @@ export default {
       this.$refs.form.validate((valid) => {
         if (valid) {
           console.log(this.data);
+          this.hide();
+          setTimeout(() => {
+            this.$emit("save", this.data);
+          }, 300);
         }
       });
     },
