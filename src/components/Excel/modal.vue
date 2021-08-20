@@ -11,6 +11,7 @@
       :layout="'horizontal'"
       :model="data"
       v-bind="formItemLayout"
+      :style="{ paddingBottom: '60px' }"
     >
       <a-form-model-item label="启动比较">
         <a-switch v-model="data.flag"></a-switch>
@@ -91,7 +92,7 @@
       :style="{
         position: 'absolute',
         bottom: 0,
-        width: '100%',
+        right: 0,
         borderTop: '1px solid #e8e8e8',
         padding: '10px 16px',
         textAlign: 'right',
