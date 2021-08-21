@@ -84,6 +84,12 @@ export default {
           };
         });
         this.activeKey = _.get(this.sheets, "0.name");
+
+        // setTimeout(() => {
+        //   document
+        //     .querySelectorAll(".check-item .check-label")
+        //     .forEach((item) => item.setAttribute("title", item.innerText));
+        // }, 500);
       };
       setTimeout(() => {
         NProgress.set(0.4);
@@ -121,18 +127,26 @@ export default {
       return numout;
     },
     getTableParams(wb, sheetName) {
-      let data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {
+      let data = XLSX.utils.sheet_to_json(this.wb.Sheets[sheetName], {
         header: "A",
       });
       // let csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName], {FS:"|"}) || "";
       // console.log(data);
       let max = 0;
       data.forEach((item) => {
+        // item.localeCompare = () => true;
         _.forEach(item, (val, key) => {
           let num = this.str2Num(key);
           if (num > max) {
             max = num;
           }
+          if (!isNaN(parseFloat(val))) {
+            item[key] = parseFloat(val).toFixed(2);
+          }
+          if (_.isString(val)) {
+            item[key] = val.trim();
+          }
+          item[key] = item[key] + "";
         });
       });
       let columns = Array(max)
@@ -143,6 +157,8 @@ export default {
             name: key,
             prop: key,
             width: 200,
+            filterable: true,
+            // searchable: true
           };
         });
       columns.unshift({ prop: "_index", name: "#", width: 80 });
@@ -156,20 +172,26 @@ export default {
       };
     },
     onChange(key) {
+      this.loadSheet(key);
+      this.activeKey = key + "";
+    },
+    loadSheet(key) {
       const { sheets } = this;
       const index = sheets.findIndex((item) => item.name === key);
-      if (_.isEmpty(_.get(sheets, `${index}.tableParams`))) {
-        NProgress.set(0.4);
-        setTimeout(() => {
-          this.$set(
-            this.sheets[index],
-            `tableParams`,
-            this.getTableParams(this.wb, key)
-          );
-          NProgress.done();
-        }, 500);
-      }
-      this.activeKey = key + "";
+      return new Promise((resolve, reject) => {
+        let tableParams = _.get(sheets, `${index}.tableParams`);
+        if (_.isEmpty(tableParams)) {
+          NProgress.set(0.4);
+          setTimeout(() => {
+            let info = this.getTableParams(this.wb, key);
+            this.$set(this.sheets[index], `tableParams`, info);
+            NProgress.done();
+            resolve(info);
+          }, 500);
+        } else {
+          resolve(tableParams);
+        }
+      });
     },
     onFilterCompare() {
       this.$refs.Modal.show({
@@ -180,14 +202,7 @@ export default {
     onSave(data = {}) {
       if (data.flag) {
         // 过滤
-        const {
-          baseSheet,
-          baseCol,
-          baseVal,
-          compareSheets,
-          compareCol,
-          compareVal,
-        } = data;
+        const { baseSheet, baseCol, baseVal, compareSheets, compareCol } = data;
         let sheets = [baseSheet, ...compareSheets];
 
         NProgress.set(0.4);
@@ -208,7 +223,21 @@ export default {
               if (compareSheets.includes(item.name)) {
                 let { sourceData = [] } = item.tableParams;
                 let matchItems = sourceData.filter((itm) => {
-                  return itm[baseCol] == baseVal;
+                  let flag = false;
+                  baseVal.forEach((val, i) => {
+                    let { data } = _.get(this.sheets, "0.tableParams");
+                    let row = val;
+                    let _baseVal = data[row][baseCol];
+                    let _compareVal = data[row][compareCol];
+                    // console.log(_baseVal, itm[baseCol], _compareVal, itm[compareCol], 777)
+                    if (
+                      itm[baseCol] == _baseVal &&
+                      itm[compareCol] != _compareVal
+                    ) {
+                      flag = true;
+                    }
+                  });
+                  return flag;
                 });
                 this.$set(this.sheets[index].tableParams, "data", matchItems);
               }
@@ -244,6 +273,39 @@ export default {
   .upload-wrapper {
   }
 
+  /deep/ .ant-upload-list-item-card-actions {
+    top: 0;
+  }
+
+  /deep/ .header-cell-inner {
+    .check-item {
+      min-height: 25px;
+      height: auto;
+      border: 1px solid #d9d9d9;
+
+      &:hover {
+        background: #e6f7ff;
+      }
+
+      .check-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+    }
+    .filter-list {
+      max-height: 240px;
+    }
+    .filter-btn {
+      .base-button {
+        min-width: 0;
+        min-height: 0;
+      }
+    }
+  }
+
   /deep/ .item-cell-inner {
     > span {
       overflow: hidden;
@@ -251,6 +313,17 @@ export default {
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
+
+      // 覆盖
+      padding: 0;
+      height: auto;
+      line-height: inherit;
+      border-radius: 0;
+      box-sizing: content-box;
+      color: #000;
+      background-color: transparent;
+      border: none;
+      white-space: normal;
     }
   }
 

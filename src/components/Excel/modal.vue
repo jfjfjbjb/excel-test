@@ -34,10 +34,12 @@
         prop="baseCol"
         :rules="[{ required: true }]"
       >
-        <a-input
+        <a-select
           v-model="data.baseCol"
-          placeholder="请输入"
+          :options="baseColOptions"
+          placeholder="请选择"
           :disabled="!data.flag"
+          @change="chooseBaseCol"
         />
       </a-form-model-item>
       <a-form-model-item
@@ -45,10 +47,12 @@
         prop="baseVal"
         :rules="[{ required: true }]"
       >
-        <a-input
+        <a-select
           v-model="data.baseVal"
-          placeholder="请输入"
+          :options="baseValOptions"
+          placeholder="请选择"
           :disabled="!data.flag"
+          mode="multiple"
         />
       </a-form-model-item>
       <a-divider />
@@ -76,7 +80,7 @@
           :disabled="!data.flag"
         />
       </a-form-model-item>
-      <a-form-model-item
+      <!-- <a-form-model-item
         label="比较值"
         prop="compareVal"
         :rules="[{ required: true }]"
@@ -86,7 +90,7 @@
           placeholder="请输入"
           :disabled="!data.flag"
         />
-      </a-form-model-item>
+      </a-form-model-item> -->
     </a-form-model>
     <div
       :style="{
@@ -112,6 +116,7 @@ export default {
   components: {},
   data() {
     this.sheets = [];
+    this.tableParams = {};
     this.count = 0;
     return {
       visible: false,
@@ -124,6 +129,7 @@ export default {
       },
       baseSheetOptions: [],
       baseColOptions: [],
+      baseValOptions: [],
       compareSheetsOptions: [],
     };
   },
@@ -137,9 +143,9 @@ export default {
       });
       if (this.count != count) {
         this.data = { flag: true };
+        this.tableParams = {};
       }
       this.count = count;
-      this.setInfo();
       this.sheets = sheets;
       this.visible = true;
     },
@@ -149,24 +155,61 @@ export default {
     onClose() {
       this.hide();
     },
-    setInfo() {
+    // setInfo() {
+    //   this.compareSheetsOptions = this.sheets
+    //     .map((item) => {
+    //       if (item.name === this.data.baseSheet) return;
+    //       return {
+    //         label: item.name,
+    //         value: item.name,
+    //       };
+    //     })
+    //     .filter((item) => item);
+    // },
+    async chooseBaseSheet(e) {
+      let sheet = this.sheets.find((item) => item.name === e) || {};
+      if (!sheet) {
+        return;
+      }
+      let tableParams = sheet.tableParams;
+      if (_.isPlainObject(tableParams)) {
+        // 加载
+        tableParams = await this.$parent.loadSheet(e);
+      }
+      console.log(tableParams, 565656);
+      this.tableParams = tableParams || {};
+
+      const { config } = tableParams || {};
+      this.data = Object.assign({}, this.data, {
+        baseCol: undefined,
+        baseVal: undefined,
+        compareSheets: undefined,
+      });
+      this.baseColOptions = config.map((item) => ({
+        label: item.prop,
+        value: item.prop,
+      }));
+      this.baseValOptions = [];
       this.compareSheetsOptions = this.sheets
         .map((item) => {
-          if (item.name === this.data.baseSheet) return;
+          if (item.name === e) return;
           return {
             label: item.name,
             value: item.name,
           };
         })
         .filter((item) => item);
+      // this.setInfo();
     },
-    chooseBaseSheet(e) {
+    chooseBaseCol(e) {
+      const { data } = this.tableParams;
       this.data = Object.assign({}, this.data, {
-        // baseCol: undefined,
-        // baseVal: undefined,
-        compareSheets: undefined,
+        baseVal: undefined,
       });
-      this.setInfo();
+      this.baseValOptions = data.map((item, index) => ({
+        label: (index + 1) + "_" + (item[e] || ''),
+        value: index,
+      }));
     },
     onOk() {
       this.$refs.form.validate((valid) => {
