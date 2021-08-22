@@ -1,5 +1,6 @@
 <template>
   <div class="test-excel">
+    <!-- 下载按钮 -->
     <a-upload
       class="upload-wrapper"
       :file-list="fileList"
@@ -9,6 +10,7 @@
     >
       <a-button> <a-icon type="upload" /> 选择excel </a-button>
     </a-upload>
+    <!-- 内容区域 -->
     <a-divider>内容显示</a-divider>
     <div class="content-box">
       <a-tabs
@@ -16,13 +18,18 @@
         v-if="sheets.length > 0"
         @change="onChange"
       >
-        <a-tab-pane v-for="sheet in sheets" :key="sheet.name" :tab="sheet.name">
+        <a-tab-pane
+          v-for="sheet in sheets.filter((item) => item.visible !== false)"
+          :key="sheet.name"
+          :tab="sheet.name"
+        >
           <!-- <a-table v-bind="sheet.tableParams" :pagination="false"></a-table> -->
           <vue-virtual-table v-bind="sheet.tableParams"> </vue-virtual-table>
         </a-tab-pane>
       </a-tabs>
       <a-empty v-else />
     </div>
+    <!-- 过滤条件 -->
     <a-button class="btn-filter-compare" @click="onFilterCompare"
       >过滤比较</a-button
     >
@@ -47,6 +54,25 @@ export default {
       sheets: [],
       activeKey: "",
     };
+  },
+  mounted() {
+    this.resize = _.debounce(() => {
+      let index =
+        this.sheets.findIndex((item) => item.name === this.activeKey) || 0;
+
+      console.log(index)
+      if (_.get(this.sheets, `${index}.tableParams`)) {
+        this.$set(
+          this.sheets[index].tableParams,
+          "height",
+          document.body.clientHeight - 260
+        );
+      }
+    }, 300);
+    window.addEventListener("resize", this.resize);
+  },
+  destroyed() {
+    window.removeEventListener('resize', this.resize);
   },
   methods: {
     handleRemove(file) {
@@ -203,21 +229,23 @@ export default {
       if (data.flag) {
         // 过滤
         const { baseSheet, baseCol, baseVal, compareSheets, compareCol } = data;
-        let sheets = [baseSheet, ...compareSheets];
+        let filterSheets = [baseSheet, ...compareSheets];
+        let baseIndex = 0;
 
         NProgress.set(0.4);
         setTimeout(() => {
-          this.sheets = this.sheets.filter((item) =>
-            sheets.includes(item.name)
-          );
-          let arr = [...this.sheets];
-          arr.forEach((item, index) => {
-            if (_.isPlainObject(_.get(item, "tableParams"))) {
-              arr[index].tableParams = this.getTableParams(this.wb, item.name);
+          this.sheets = this.sheets.map((item, index) => {
+            if (item.name === baseSheet) baseIndex = index;
+            if (!filterSheets.includes(item.name)) {
+              item.visible = false;
+            } else {
+              if (_.isPlainObject(_.get(item, "tableParams"))) {
+                item.tableParams = this.getTableParams(this.wb, item.name);
+              }
             }
+            return item;
           });
-          this.sheets = arr;
-          this.activeKey = arr[0].name;
+          this.activeKey = this.sheets[baseIndex].name;
           setTimeout(() => {
             this.sheets.forEach((item, index) => {
               if (compareSheets.includes(item.name)) {
@@ -225,7 +253,7 @@ export default {
                 let matchItems = sourceData.filter((itm) => {
                   let flag = false;
                   baseVal.forEach((val, i) => {
-                    let { data } = _.get(this.sheets, "0.tableParams");
+                    let { data } = _.get(this.sheets[baseIndex], "tableParams");
                     let row = val;
                     let _baseVal = data[row][baseCol];
                     let _compareVal = data[row][compareCol];
@@ -249,11 +277,9 @@ export default {
         // 还原
         NProgress.set(0.4);
         setTimeout(() => {
-          this.sheets = this.wb.SheetNames.map((item, index) => {
-            return {
-              name: item,
-              tableParams: index == 0 ? this.getTableParams(this.wb, item) : {},
-            };
+          this.sheets = this.sheets.map((item) => {
+            item.visible = true;
+            return item;
           });
           this.activeKey = _.get(this.sheets, "0.name");
           NProgress.done();

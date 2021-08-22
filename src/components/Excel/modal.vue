@@ -207,11 +207,18 @@ export default {
         baseVal: undefined,
       });
       this.baseValOptions = data.map((item, index) => ({
-        label: (index + 1) + "_" + (item[e] || ''),
+        label: index + 1 + "_" + (item[e] || ""),
         value: index,
       }));
     },
     onOk() {
+      if (!this.data.flag) {
+        this.hide();
+        setTimeout(() => {
+          this.$emit("save", this.data);
+        }, 300);
+        return;
+      }
       this.$refs.form.validate((valid) => {
         if (valid) {
           console.log(this.data);
