@@ -10,6 +10,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin')
 const ExtractTextPlugin = require('extract-text-webpack-plugin')
 const OptimizeCSSPlugin = require('optimize-css-assets-webpack-plugin')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
+const BundleAnalyzerPlugin = require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
 
 const env = require('../config/prod.env')
 
@@ -72,7 +73,8 @@ const webpackConfig = merge(baseWebpackConfig, {
         // https://github.com/kangax/html-minifier#options-quick-reference
       },
       // necessary to consistently work with multiple chunks via CommonsChunkPlugin
-      chunksSortMode: 'dependency'
+      chunksSortMode: 'manual', // 'dependency',
+      chunks: ['manifest', 'vue', 'antd', 'vendor', 'app']
     }),
     // keep module.id stable when vendor modules does not change
     new webpack.HashedModuleIdsPlugin(),
@@ -81,7 +83,7 @@ const webpackConfig = merge(baseWebpackConfig, {
     // split vendor js into its own file
     new webpack.optimize.CommonsChunkPlugin({
       name: 'vendor',
-      minChunks (module) {
+      minChunks(module) {
         // any required modules inside node_modules are extracted to vendor
         return (
           module.resource &&
@@ -89,6 +91,41 @@ const webpackConfig = merge(baseWebpackConfig, {
           module.resource.indexOf(
             path.join(__dirname, '../node_modules')
           ) === 0
+        )
+      }
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'vue',
+      minChunks(module) {
+        // any required modules inside node_modules are extracted to vendor
+        return (
+          module.resource &&
+          /\.js$/.test(module.resource) && /_vue/.test(module.resource)
+        )
+      },
+      chunks: ['vendor']
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'antd',
+      minChunks(module) {
+        // any required modules inside node_modules are extracted to vendor
+        return (
+          module.resource &&
+          /\.js$/.test(module.resource) && /_ant|_@ant/.test(module.resource)
+        )
+      },
+      chunks: ['vendor']
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      // name: 'xlsx',
+      async: 'xlsx-async',
+      children: true,
+      minChunks(module) {
+        // console.log(module.resource, 'ssssssssssssssssssss')
+        // any required modules inside node_modules are extracted to vendor
+        return (
+          module.resource &&
+          /\.js$/.test(module.resource) && /_xlsx/.test(module.resource)
         )
       }
     }),
@@ -115,7 +152,22 @@ const webpackConfig = merge(baseWebpackConfig, {
         to: config.build.assetsSubDirectory,
         ignore: ['.*']
       }
-    ])
+    ]),
+    //  可以是`server`，`static`或`disabled`。
+    //  在`server`模式下，分析器将启动HTTP服务器来显示软件包报告。
+    //  在“静态”模式下，会生成带有报告的单个HTML文件。
+    new BundleAnalyzerPlugin({
+      analyzerMode: "static",
+      analyzerHost: "127.0.0.1",
+      analyzerPort: 8882, //注意是否有端口冲突
+      reportFilename: "report.html",
+      defaultSizes: "parsed",
+      openAnalyzer: true,
+      generateStatsFile: false,
+      statsFilename: "stats.json",
+      statsOptions: null,
+      logLevel: "info",
+    })
   ]
 })
 
